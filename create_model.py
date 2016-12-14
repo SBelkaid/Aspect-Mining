@@ -47,12 +47,12 @@ from xml.etree import ElementTree
 
 
 data = json.loads(open('dutchies.json', 'r').read())
-DATABASE = '~/Programming/terminology_extractor/hotel_reviews.db'
-#DATABASE = '/Users/nadiamanarbelkaid/Aspect_mining/hotel_reviews.db'
-CMD_EXTRACTOR_SCRIPT = '~/Programming/terminology_extractor/extract_patterns.py'
-#CMD_EXTRACTOR_SCRIPT = '/Users/nadiamanarbelkaid/terminology_extractor/extract_patterns.py'
-PATH_ANNOTATED_DATA = '/Users/soufyanbelkaid/Research/Aspect_mining_hotels/opinion_annotations_nl-master/kaf/hotel/'
-#PATH_ANNOTATED_DATA = '/Users/nadiamanarbelkaid/Aspect_mining/opinion_annotations_nl-master/kaf/hotel/'
+#DATABASE = '~/Programming/terminology_extractor/hotel_reviews.db'
+DATABASE = '/Users/nadiamanarbelkaid/Aspect_mining/hotel_reviews.db'
+#CMD_EXTRACTOR_SCRIPT = '~/Programming/terminology_extractor/extract_patterns.py'
+CMD_EXTRACTOR_SCRIPT = '/Users/nadiamanarbelkaid/terminology_extractor/extract_patterns.py'
+#PATH_ANNOTATED_DATA = '/Users/soufyanbelkaid/Research/Aspect_mining_hotels/opinion_annotations_nl-master/kaf/hotel/'
+PATH_ANNOTATED_DATA = '/Users/nadiamanarbelkaid/Aspect_mining/opinion_annotations_nl-master/kaf/hotel/'
 POSSIBLE_PROPERTIES = {'Bathroom',
  'Beds',
  'Breakfast',
@@ -70,7 +70,7 @@ POSSIBLE_PROPERTIES = {'Bathroom',
  'Swimming pool',
  'Transportation',
  'Value-for-money'}
- aspects = list()
+
 
 
 def return_feats(list_reviews):
@@ -257,6 +257,7 @@ def prettify(elem):
     return reparsed.toprettyxml(indent="  ")
     
     
+    
 def return_mods(words_found, term_dict, path_to_db):
     """
     Ruben's terminology extractor. For now this function only works with 
@@ -296,7 +297,14 @@ def return_mods(words_found, term_dict, path_to_db):
                     "key":"tokens",
                     "position": str(i),
                     "values":context['lemma'].lower()
-                })                        
+                })
+    #store pattern in memory
+    pat = list(top)[1]
+    pattern_tuple = tuple(child.attrib for child in pat.findall('p'))
+    if pattern_tuple in patterns:
+        return
+    else:
+        patterns.append(pattern_tuple)
 #    #STORE PATTERNS FILE
     if not os.path.isdir('patterns'):
         os.mkdir('patterns')
@@ -315,11 +323,7 @@ def return_mods(words_found, term_dict, path_to_db):
     output, err = process.communicate()    
     if output:
         store_output_extractor(output)
-
-def store_output_extractor(raw_output):
-    global aspects
-    aspects.append(raw_output.split()[1])
-    
+    return top
 
 
 def test_function():
@@ -337,6 +341,21 @@ def test_function():
                 except KeyError:
                     print "term_id not found {}".format(e['tid'])                    
                     print e
+            print "AMOUNT OF ASPECTS {}".format(len(aspects))
+
+
+def store_output_extractor(raw_output):
+    candidate_terms = zip(*[e.split() for e in raw_output.splitlines()])[2]
+    for candidate in candidate_terms:
+        aspects.append(candidate)
+    
+    
+    
+def test_fun_2():
+    terms, props, handled_props, term_dict,\
+        tokens_dict = read_training_data(os.listdir(PATH_ANNOTATED_DATA)[0])
+    return return_mods(get_context_numbers('t11', term_dict), term_dict, DATABASE)
+    
 
 if __name__ == '__main__':
     processed_data = preprocess([d['comment'] for d in data])
@@ -365,5 +384,9 @@ if __name__ == '__main__':
     clf.score(X_test, y_test)
 
 
+    aspects = list()
+    patterns = list()
+    test_function()
+#
 #    terms, props, handled_props, term_dict,\
 #        tokens_dict = read_training_data(os.listdir(PATH_ANNOTATED_DATA)[0])
