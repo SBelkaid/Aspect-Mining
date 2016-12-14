@@ -47,12 +47,12 @@ from xml.etree import ElementTree
 
 
 data = json.loads(open('dutchies.json', 'r').read())
-#DATABASE = '~/Programming/terminology_extractor/hotel_reviews.db'
-DATABASE = '/Users/nadiamanarbelkaid/Aspect_mining/hotel_reviews.db'
-#CMD_EXTRACTOR_SCRIPT = '~/Programming/terminology_extractor/extract_patterns.py'
-CMD_EXTRACTOR_SCRIPT = '/Users/nadiamanarbelkaid/terminology_extractor/extract_patterns.py'
-#PATH_ANNOTATED_DATA = '/Users/soufyanbelkaid/Research/Aspect_mining_hotels/opinion_annotations_nl-master/kaf/hotel/'
-PATH_ANNOTATED_DATA = '/Users/nadiamanarbelkaid/Aspect_mining/opinion_annotations_nl-master/kaf/hotel/'
+DATABASE = '~/Programming/terminology_extractor/hotel_reviews.db'
+#DATABASE = '/Users/nadiamanarbelkaid/Aspect_mining/hotel_reviews.db'
+CMD_EXTRACTOR_SCRIPT = '~/Programming/terminology_extractor/extract_patterns.py'
+#CMD_EXTRACTOR_SCRIPT = '/Users/nadiamanarbelkaid/terminology_extractor/extract_patterns.py'
+PATH_ANNOTATED_DATA = '/Users/soufyanbelkaid/Research/Aspect_mining_hotels/opinion_annotations_nl-master/kaf/hotel/'
+#PATH_ANNOTATED_DATA = '/Users/nadiamanarbelkaid/Aspect_mining/opinion_annotations_nl-master/kaf/hotel/'
 POSSIBLE_PROPERTIES = {'Bathroom',
  'Beds',
  'Breakfast',
@@ -70,6 +70,7 @@ POSSIBLE_PROPERTIES = {'Bathroom',
  'Swimming pool',
  'Transportation',
  'Value-for-money'}
+ aspects = list()
 
 
 def return_feats(list_reviews):
@@ -229,7 +230,9 @@ def get_context_numbers(term_id, term_dict):
     term_number = int(term_id[term_id.index(term_id)+1:])
     if term_number != 1:
         term_previous = 't'+str(term_number - 1)
-    if term_dict[term_previous]['lemma'] == '.': 
+    if term_number - 1 == 0:
+        term_previous = '<BEGIN>'
+    if term_number -1 != 0 and term_dict[term_previous]['lemma'] == '.': 
         term_previous = '<BEGIN>'
     next_num = 't'+str(term_number + 1)
     if term_dict.get(next_num):
@@ -287,7 +290,7 @@ def return_mods(words_found, term_dict, path_to_db):
                     "values":term_dict[words_found[i]]['pos'].lower()
                 })
         context = term_dict.get(words_found[i])
-        if context and i != 1:
+        if context and i != 1 :
 #           string of the context words
             SubElement(child, 'p',{
                     "key":"tokens",
@@ -303,15 +306,37 @@ def return_mods(words_found, term_dict, path_to_db):
     print file_name
     with open(file_name, 'w', 0) as f: #0 is for not buffering
         f.write(prettify(top).encode('utf8'))
-# ## CALL THE TERMINOLOGY EXTRACTOR WITH THE NEWLY CREATED PATTERNS
-#    cmd = ' '.join(['python', CMD_EXTRACTOR_SCRIPT, '-d', path_to_db, '-p', file_name])
-##    logging.info(cmd)
-##    logging.info("{} calling terminology extractor".format(time.strftime('%H:%M:%S')))
-#    process = Popen(cmd, stdout=PIPE, shell=True)
-#    output, err = process.communicate()    
-#    print output
-#    return top    
+ ## CALL THE TERMINOLOGY EXTRACTOR WITH THE NEWLY CREATED PATTERNS
+    cmd = ' '.join(['python', CMD_EXTRACTOR_SCRIPT, '-d', path_to_db, '-p', file_name])
+#    logging.info(cmd)
+#    print cmd
+#    logging.info("{} calling terminology extractor".format(time.strftime('%H:%M:%S')))
+    process = Popen(cmd, stdout=PIPE, shell=True)
+    output, err = process.communicate()    
+    if output:
+        store_output_extractor(output)
+
+def store_output_extractor(raw_output):
+    global aspects
+    aspects.append(raw_output.split()[1])
     
+
+
+def test_function():
+    training_props = []
+    for file_name in os.listdir(PATH_ANNOTATED_DATA):
+        print file_name
+        terms, props, handled_props, term_dict,\
+            tokens_dict = read_training_data(file_name)
+        training_props.extend(handled_props)
+
+        for e in zip(*training_props)[1]:
+            if isinstance(e['aspect'], str):
+                try:
+                    return_mods(get_context_numbers(e['tid'], term_dict), term_dict, DATABASE)    
+                except KeyError:
+                    print "term_id not found {}".format(e['tid'])                    
+                    print e
 
 if __name__ == '__main__':
     processed_data = preprocess([d['comment'] for d in data])
@@ -340,5 +365,5 @@ if __name__ == '__main__':
     clf.score(X_test, y_test)
 
 
-    terms, props, handled_props, term_dict,\
-        tokens_dict = read_training_data(os.listdir(PATH_ANNOTATED_DATA)[0])
+#    terms, props, handled_props, term_dict,\
+#        tokens_dict = read_training_data(os.listdir(PATH_ANNOTATED_DATA)[0])
