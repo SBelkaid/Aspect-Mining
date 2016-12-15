@@ -44,6 +44,7 @@ from subprocess import Popen, PIPE
 from xml.etree.ElementTree import Element, SubElement, Comment
 from xml.dom import minidom
 from xml.etree import ElementTree
+from sklearn.metrics import classification_report
 
 
 data = json.loads(open('dutchies.json', 'r').read())
@@ -382,6 +383,8 @@ if __name__ == '__main__':
     clf.fit(X_train, y_train)
 #    print set(clf.predict(X_test))
     clf.score(X_test, y_test)
+    predicted = clf.predict(X_test)
+    classification_report(y_test, predicted)
 
 
     aspects = list()
