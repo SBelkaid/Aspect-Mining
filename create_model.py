@@ -48,11 +48,11 @@ from sklearn.metrics import classification_report
 
 
 data = json.loads(open('dutchies.json', 'r').read())
-DATABASE = '~/Programming/terminology_extractor/hotel_reviews.db'
-#DATABASE = '/Users/nadiamanarbelkaid/Aspect_mining/hotel_reviews.db'
-CMD_EXTRACTOR_SCRIPT = '~/Programming/terminology_extractor/extract_patterns.py'
+DATABASE = '~/Programming/terminology_extractor/hotel_reviews_v2.db'
+#DATABASE = '/Users/nadiamanarbelkaid/Aspect_mining/hotel_reviews_v2.db'
+CMD_EXTRACTOR_SCRIPT = '~/Research/terminology_extractor/extract_patterns.py'
 #CMD_EXTRACTOR_SCRIPT = '/Users/nadiamanarbelkaid/terminology_extractor/extract_patterns.py'
-PATH_ANNOTATED_DATA = '/Users/soufyanbelkaid/Research/Aspect-mining/opinion_annotations_nl-master/kaf/hotel/'
+PATH_ANNOTATED_DATA = '/Users/soufyanbelkaid/Research/Aspect-Mining/opinion_annotations_nl-master/kaf/hotel/'
 #PATH_ANNOTATED_DATA = '/Users/nadiamanarbelkaid/Aspect_mining/opinion_annotations_nl-master/kaf/hotel/'
 POSSIBLE_PROPERTIES = {'Bathroom',
  'Beds',
@@ -70,7 +70,29 @@ POSSIBLE_PROPERTIES = {'Bathroom',
  'Staff',
  'Swimming pool',
  'Transportation',
- 'Value-for-money'}        
+ 'Value-for-money'}
+
+
+def return_feats(list_reviews):
+    """
+    extract some data contained in the dictionairies
+    """
+    all_aspects = list()
+    unique_aspects = set()
+    reviews = list()
+    for el_dict in list_reviews:
+        raw_text = el_dict['comment']
+        subjectivity = el_dict['sentiment']
+        aspects = el_dict['topics']
+        if aspects:
+            all_aspects.append(aspects)
+            unique_aspects.update(aspects)
+        else:
+            all_aspects.append(None)
+        reviews.append(raw_text)
+    print "amount of unique aspects is {}".format(len(unique_aspects))
+    return all_aspects, reviews
+        
       
 def preprocess(files, tagged=False):
     """
@@ -145,9 +167,7 @@ def handle_properties(property_elements, terms, tokens_dict):
         combine=False
         if len(target_ids) > 1:
             combine=True
-            print combine
         into_one_aspect = []
-#        print prop_el_category 
         for t_id in target_ids:
 #            print "\t TERM ID %s is a target" % t_id
             term_final = term_dict[t_id].copy() #so the original is not changed
@@ -235,8 +255,7 @@ def prettify(elem):
     return reparsed.toprettyxml(indent="  ")
     
     
-    
-def return_mods(words_found, term_dict, path_to_db, kaf_file_name):
+def return_mods(words_found, term_dict, path_to_db):
     """
     Ruben's terminology extractor. For now this function only works with 
     the first words found in WordNet by search_in_dwn
@@ -250,16 +269,13 @@ def return_mods(words_found, term_dict, path_to_db, kaf_file_name):
 
     comment = Comment('Pattern file for terminology extractor')
     top.append(comment)
-    #ALREADY SET-UP STORAGE FOR LATER USAGE 
-#    container = {}
-#    container[word] = defaultdict(list) #INIT DEFAULTDICT TO STORE MODIFIERS
     child = SubElement(top, 'pattern', {'len':str(len(words_found))})
-#    child.len = len(words_found)
 
     ## CAN ADD PATTERNS HERE
     for i in range(len(words_found)):
 #   only the pos tag of the aspect
         if words_found[0] == '<BEGIN>':
+            #no contect words, simple pattern can't be extracted
             print "stopping function, because beginning sentence"             
             return
         if i == 1:
@@ -276,10 +292,11 @@ def return_mods(words_found, term_dict, path_to_db, kaf_file_name):
                     "position": str(i),
                     "values":context['lemma'].lower()
                 })
-    #store pattern in memory
+    #store pattern in memory, avoid searching with the same pattern
     pat = list(top)[1]
     pattern_tuple = tuple(child.attrib for child in pat.findall('p'))
     if pattern_tuple in patterns:
+        print 'RETURNING, PATTERN ALREADY USED'
         return
     else:
         patterns.append(pattern_tuple)
@@ -289,7 +306,7 @@ def return_mods(words_found, term_dict, path_to_db, kaf_file_name):
 
 #    logging.info("{} writing pattern file".format(time.strftime('%H:%M:%S')))
     file_name = os.path.abspath('.')+'/patterns/xml_pattern-{}.xml'.format(time.strftime('%d-%m-%y-%H:%M:%S'))
-    print file_name
+#    print file_name
     with open(file_name, 'w', 0) as f: #0 is for not buffering
         f.write(prettify(top).encode('utf8'))
  ## CALL THE TERMINOLOGY EXTRACTOR WITH THE NEWLY CREATED PATTERNS
@@ -300,13 +317,16 @@ def return_mods(words_found, term_dict, path_to_db, kaf_file_name):
     process = Popen(cmd, stdout=PIPE, shell=True)
     output, err = process.communicate()    
     if output:
-        store_output_extractor(output, kaf_file_name, term_dict, words_found[1])
+        store_output_extractor(output)
     return top
 
 
 def test_function():
     training_props = []
+    count = 0
     for file_name in os.listdir(PATH_ANNOTATED_DATA):
+        if count == 10:
+            break
         print file_name
         terms, props, handled_props, term_dict,\
             tokens_dict = read_training_data(file_name)
@@ -315,33 +335,36 @@ def test_function():
         for e in zip(*training_props)[1]:
             if isinstance(e['aspect'], str):
                 try:
-                    return_mods(get_context_numbers(e['tid'], term_dict), term_dict, DATABASE, file_name)    
+                    return_mods(get_context_numbers(e['tid'], term_dict), term_dict, DATABASE)    
                 except KeyError:
-                    print "term_id not found {}".format(e['tid'])                    
+                    print "term_id not found {} in file {}".format(e['tid'], file_name)                    
                     print e
             print "AMOUNT OF ASPECTS {}".format(len(aspects))
+        count+=1
+        print count
 
 
-def store_output_extractor(raw_output, file_name, term_dict, aspect_tid):
-    candidate_terms = zip(*[e.split() for e in raw_output.splitlines()])[2]
-    for candidate in candidate_terms:
-        print candidate
-        aspects.append((file_name, candidate, ))
+def store_output_extractor(raw_output):
+    try:
+        candidates = json.loads(raw_output)
+        for key, val in candidates.items():
+            #index 1, only interested in middle
+            aspects.append((key, zip(val[0][0].split(), val[0][1].split())[1]))
+    except ValueError, e:
+        print "check terminology extractor output"
+        raise e
     
     
 def test_fun_2():
-    f_name = os.listdir(PATH_ANNOTATED_DATA)[0]
     terms, props, handled_props, term_dict,\
-        tokens_dict = read_training_data(f_name)
-    return return_mods(get_context_numbers('t11', term_dict), term_dict, DATABASE, f_name)
+        tokens_dict = read_training_data(os.listdir(PATH_ANNOTATED_DATA)[0])
+    return_mods(get_context_numbers('t11', term_dict), term_dict, DATABASE)
     
 
 if __name__ == '__main__':
     processed_data = preprocess([d['comment'] for d in data])
     model = gensim.models.Word2Vec(processed_data)
     print "CREATING W2V MODEL"
-    aspects, reviews = return_feats(data)
-#    
     training_props = []
     for file_name in os.listdir(PATH_ANNOTATED_DATA):
         print file_name
@@ -359,15 +382,13 @@ if __name__ == '__main__':
 #    clf = svm.SVC()
     clf = OneVsRestClassifier(LinearSVC(random_state=0))
     clf.fit(X_train, y_train)
-#    print set(clf.predict(X_test))
     clf.score(X_test, y_test)
     predicted = clf.predict(X_test)
-    classification_report(y_test, predicted)
-
-
+    print classification_report(y_test, predicted)
     aspects = list()
     patterns = list()
+
     test_fun_2()
 #
-    terms, props, handled_props, term_dict,\
-        tokens_dict = read_training_data(os.listdir(PATH_ANNOTATED_DATA)[0])
+#    terms, props, handled_props, term_dict,\
+#        tokens_dict = read_training_data(os.listdir(PATH_ANNOTATED_DATA)[0])
