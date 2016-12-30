@@ -48,12 +48,12 @@ from sklearn.metrics import classification_report
 
 
 data = json.loads(open('dutchies.json', 'r').read())
-#DATABASE = '~/Programming/terminology_extractor/hotel_reviews.db'
-DATABASE = '/Users/nadiamanarbelkaid/Aspect_mining/hotel_reviews.db'
-#CMD_EXTRACTOR_SCRIPT = '~/Programming/terminology_extractor/extract_patterns.py'
-CMD_EXTRACTOR_SCRIPT = '/Users/nadiamanarbelkaid/terminology_extractor/extract_patterns.py'
-#PATH_ANNOTATED_DATA = '/Users/soufyanbelkaid/Research/Aspect_mining_hotels/opinion_annotations_nl-master/kaf/hotel/'
-PATH_ANNOTATED_DATA = '/Users/nadiamanarbelkaid/Aspect_mining/opinion_annotations_nl-master/kaf/hotel/'
+DATABASE = '~/Programming/terminology_extractor/hotel_reviews.db'
+#DATABASE = '/Users/nadiamanarbelkaid/Aspect_mining/hotel_reviews.db'
+CMD_EXTRACTOR_SCRIPT = '~/Programming/terminology_extractor/extract_patterns.py'
+#CMD_EXTRACTOR_SCRIPT = '/Users/nadiamanarbelkaid/terminology_extractor/extract_patterns.py'
+PATH_ANNOTATED_DATA = '/Users/soufyanbelkaid/Research/Aspect-mining/opinion_annotations_nl-master/kaf/hotel/'
+#PATH_ANNOTATED_DATA = '/Users/nadiamanarbelkaid/Aspect_mining/opinion_annotations_nl-master/kaf/hotel/'
 POSSIBLE_PROPERTIES = {'Bathroom',
  'Beds',
  'Breakfast',
@@ -70,30 +70,7 @@ POSSIBLE_PROPERTIES = {'Bathroom',
  'Staff',
  'Swimming pool',
  'Transportation',
- 'Value-for-money'}
-
-
-
-def return_feats(list_reviews):
-    """
-    extract some data contained in the dictionairies
-    """
-    all_aspects = list()
-    unique_aspects = set()
-    reviews = list()
-    for el_dict in list_reviews:
-        raw_text = el_dict['comment']
-        subjectivity = el_dict['sentiment']
-        aspects = el_dict['topics']
-        if aspects:
-            all_aspects.append(aspects)
-            unique_aspects.update(aspects)
-        else:
-            all_aspects.append(None)
-        reviews.append(raw_text)
-    print "amount of unique aspects is {}".format(len(unique_aspects))
-    return all_aspects, reviews
-        
+ 'Value-for-money'}        
       
 def preprocess(files, tagged=False):
     """
@@ -259,7 +236,7 @@ def prettify(elem):
     
     
     
-def return_mods(words_found, term_dict, path_to_db):
+def return_mods(words_found, term_dict, path_to_db, kaf_file_name):
     """
     Ruben's terminology extractor. For now this function only works with 
     the first words found in WordNet by search_in_dwn
@@ -323,7 +300,7 @@ def return_mods(words_found, term_dict, path_to_db):
     process = Popen(cmd, stdout=PIPE, shell=True)
     output, err = process.communicate()    
     if output:
-        store_output_extractor(output)
+        store_output_extractor(output, kaf_file_name, term_dict, words_found[1])
     return top
 
 
@@ -338,24 +315,25 @@ def test_function():
         for e in zip(*training_props)[1]:
             if isinstance(e['aspect'], str):
                 try:
-                    return_mods(get_context_numbers(e['tid'], term_dict), term_dict, DATABASE)    
+                    return_mods(get_context_numbers(e['tid'], term_dict), term_dict, DATABASE, file_name)    
                 except KeyError:
                     print "term_id not found {}".format(e['tid'])                    
                     print e
             print "AMOUNT OF ASPECTS {}".format(len(aspects))
 
 
-def store_output_extractor(raw_output):
+def store_output_extractor(raw_output, file_name, term_dict, aspect_tid):
     candidate_terms = zip(*[e.split() for e in raw_output.splitlines()])[2]
     for candidate in candidate_terms:
-        aspects.append(candidate)
-    
+        print candidate
+        aspects.append((file_name, candidate, ))
     
     
 def test_fun_2():
+    f_name = os.listdir(PATH_ANNOTATED_DATA)[0]
     terms, props, handled_props, term_dict,\
-        tokens_dict = read_training_data(os.listdir(PATH_ANNOTATED_DATA)[0])
-    return return_mods(get_context_numbers('t11', term_dict), term_dict, DATABASE)
+        tokens_dict = read_training_data(f_name)
+    return return_mods(get_context_numbers('t11', term_dict), term_dict, DATABASE, f_name)
     
 
 if __name__ == '__main__':
@@ -389,7 +367,7 @@ if __name__ == '__main__':
 
     aspects = list()
     patterns = list()
-    test_function()
+    test_fun_2()
 #
-#    terms, props, handled_props, term_dict,\
-#        tokens_dict = read_training_data(os.listdir(PATH_ANNOTATED_DATA)[0])
+    terms, props, handled_props, term_dict,\
+        tokens_dict = read_training_data(os.listdir(PATH_ANNOTATED_DATA)[0])
