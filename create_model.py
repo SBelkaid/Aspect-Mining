@@ -54,23 +54,23 @@ CMD_EXTRACTOR_SCRIPT = '~/Research/terminology_extractor/extract_patterns.py'
 #CMD_EXTRACTOR_SCRIPT = '/Users/nadiamanarbelkaid/terminology_extractor/extract_patterns.py'
 PATH_ANNOTATED_DATA = '/Users/soufyanbelkaid/Research/Aspect-Mining/opinion_annotations_nl-master/kaf/hotel/'
 #PATH_ANNOTATED_DATA = '/Users/nadiamanarbelkaid/Aspect_mining/opinion_annotations_nl-master/kaf/hotel/'
-POSSIBLE_PROPERTIES = {'Bathroom',
- 'Beds',
- 'Breakfast',
- 'Car parking',
- 'Cleanliness',
- 'Facilities',
- 'Interior/exterior',
- 'Internet',
- 'Location',
- 'Noisiness',
- 'Reservation/check-in/check-out',
- 'Restaurant',
- 'Rooms',
- 'Staff',
- 'Swimming pool',
- 'Transportation',
- 'Value-for-money'}
+POSSIBLE_PROPERTIES = {'Bathroom':['badkamer'],
+ 'Beds':['bed', 'bedden'],
+ 'Breakfast':['ontbijt'],
+ 'Car parking':['parkeren'],
+ 'Cleanliness':['hygiëne','schoon'],
+ 'Facilities':['faciliteiten'],
+ 'Interior/exterior':['interieur'],
+ 'Internet':['internet'],
+ 'Location':['locatie'],
+ 'Noisiness':['geluid'],
+ 'Reservation/check-in/check-out':['inchecken', 'uitchecken'],
+ 'Restaurant':['restaurant'],
+ 'Rooms':['kamer'],
+ 'Staff':['personeel'],
+ 'Swimming pool':['zwembad'],
+ 'Transportation':['vervoer'],
+ 'Value-for-money':['waarde','geld']}
 
 
 def return_feats(list_reviews):
