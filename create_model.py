@@ -253,13 +253,56 @@ def prettify(elem):
     rough_string = ElementTree.tostring(elem, 'utf-8')
     reparsed = minidom.parseString(rough_string)
     return reparsed.toprettyxml(indent="  ")
+
+
+def create_pattern_file(words_found, term_dict, top_element):
+    child = SubElement(top_element, 'pattern', {'len':str(len(words_found))})
+    ## CAN ADD PATTERNS HERE
+    for i in range(len(words_found)):
+#   only the pos tag of the aspect
+        if words_found[0] == '<BEGIN>':
+            #no contect words, simple pattern can't be extracted
+            print "stopping function, because beginning sentence"             
+            return
+        if i == 1:
+            SubElement(child, 'p',{
+                    "key":"pos",
+                    "position": str(i),
+                    "values":term_dict[words_found[i]]['pos'].lower()
+                })
+        context = term_dict.get(words_found[i])
+        if context and i != 1 :
+#           string of the context words
+            SubElement(child, 'p',{
+                    "key":"tokens",
+                    "position": str(i),
+                    "values":context['lemma'].lower()
+                })
+    print "added patterns to top_element"
     
+
+def run_extractor(pattern_file, path_to_db):
+    if not os.path.isdir('patterns'):
+        os.mkdir('patterns')
+
+#    logging.info("{} writing pattern file".format(time.strftime('%H:%M:%S')))
+    file_name = os.path.abspath('.')+'/patterns/xml_pattern-{}.xml'.format(time.strftime('%d-%m-%y-%H:%M:%S'))
+#    print file_name
+    with open(file_name, 'w', 0) as f: #0 is for not buffering
+        f.write(prettify(pattern_file).encode('utf8'))
+ ## CALL THE TERMINOLOGY EXTRACTOR WITH THE NEWLY CREATED PATTERNS
+    cmd = ' '.join(['python', CMD_EXTRACTOR_SCRIPT, '-d', path_to_db, '-p', file_name])
+#    logging.info(cmd)
+#    print cmd
+#    logging.info("{} calling terminology extractor".format(time.strftime('%H:%M:%S')))
+    process = Popen(cmd, stdout=PIPE, shell=True)
+    output, err = process.communicate()    
+    if output:
+        store_output_extractor(output)
+   
     
 def return_mods(words_found, term_dict, path_to_db):
     """
-    Ruben's terminology extractor. For now this function only works with 
-    the first words found in WordNet by search_in_dwn
-
     :param words_found: list of term-ids, if not t-id then <END> or <BEGIN>
     :type words_found: list
     :param path_to_db: path to database containing ngrams
@@ -321,7 +364,11 @@ def return_mods(words_found, term_dict, path_to_db):
     return top
 
 
-def test_function():
+def start():
+    top = Element('patterns') #this will be the main pattern file.
+    comment = Comment('Pattern file for terminology extractor')
+    top.append(comment)
+
     training_props = []
     count = 0
     for file_name in os.listdir(PATH_ANNOTATED_DATA):
@@ -335,14 +382,14 @@ def test_function():
         for e in zip(*training_props)[1]:
             if isinstance(e['aspect'], str):
                 try:
-                    return_mods(get_context_numbers(e['tid'], term_dict), term_dict, DATABASE)    
+                    create_pattern_file(get_context_numbers(e['tid'], term_dict), term_dict, top)
                 except KeyError:
                     print "term_id not found {} in file {}".format(e['tid'], file_name)                    
                     print e
             print "AMOUNT OF ASPECTS {}".format(len(aspects))
         count+=1
         print count
-
+    return top
 
 def store_output_extractor(raw_output):
     try:
@@ -388,7 +435,8 @@ if __name__ == '__main__':
     aspects = list()
     patterns = list()
 
-    test_fun_2()
+    pattern_file = start()
+    run_extractor(pattern_file, DATABASE)
 #
 #    terms, props, handled_props, term_dict,\
 #        tokens_dict = read_training_data(os.listdir(PATH_ANNOTATED_DATA)[0])
