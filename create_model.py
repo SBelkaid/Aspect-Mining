@@ -56,27 +56,6 @@ POSSIBLE_PROPERTIES = {'Bathroom':['badkamer'],
  'Value-for-money':['waarde','geld']}
 
 
-def return_feats(list_reviews):
-    """
-    extract some data contained in the dictionairies
-    """
-    all_aspects = list()
-    unique_aspects = set()
-    reviews = list()
-    for el_dict in list_reviews:
-        raw_text = el_dict['comment']
-        subjectivity = el_dict['sentiment']
-        aspects = el_dict['topics']
-        if aspects:
-            all_aspects.append(aspects)
-            unique_aspects.update(aspects)
-        else:
-            all_aspects.append(None)
-        reviews.append(raw_text)
-    print "amount of unique aspects is {}".format(len(unique_aspects))
-    return all_aspects, reviews
-        
-      
 def preprocess(files, tagged=False):
     """
     returns list of tokenized sentences, sentence splitted and words have been lowered 
