@@ -4,24 +4,7 @@ Created on Sat Nov 19 21:38:03 20
 
 This script reads hotel review corpus and creates a W2v model from that data. 
 This model can be used to link aspects to the correct categories. These 
-categories are extracted from a knowledge base. In this case that KB is 
-WordNet. 
-
-to do:
-
-aspects can be phrases so think of a way to account for a phrase as
-an aspect. Now every word of the same phrase is seen as its own aspect
-
-
-
-    Objective of mining direct opinions: Given an opinionated document d,
-    1. discover all opinion quintuples (oj, fjk, ooijkl, hi, tl) in d, and
-    2. identify all the synonyms (Wjk) and feature indicators Ijk of each feature fjk in d.
-    1. Identify object features that have been commented on. For instance, in the sentence,
-    “The picture quality of this camera is amazing,” the object feature is “picture quality”.
-    2. Determine whether the opinions on the features are positive, negative or neutral.
-    In the above sentence, the opinion on the feature “picture quality” is positive.
-
+categories are extracted from a knowledge base.
 
 @author: soufyanbelkaid
 """
@@ -300,79 +283,15 @@ def run_extractor(pattern_file, path_to_db):
     if output:
         store_output_extractor(output)
    
-    
-def return_mods(words_found, term_dict, path_to_db):
-    """
-    :param words_found: list of term-ids, if not t-id then <END> or <BEGIN>
-    :type words_found: list
-    :param path_to_db: path to database containing ngrams
-    :param term_dict: dictionairy with term info. Keys are tid 
-    """
-    top = Element('patterns')
 
-    comment = Comment('Pattern file for terminology extractor')
-    top.append(comment)
-    child = SubElement(top, 'pattern', {'len':str(len(words_found))})
-
-    ## CAN ADD PATTERNS HERE
-    for i in range(len(words_found)):
-#   only the pos tag of the aspect
-        if words_found[0] == '<BEGIN>':
-            #no contect words, simple pattern can't be extracted
-            print "stopping function, because beginning sentence"             
-            return
-        if i == 1:
-            SubElement(child, 'p',{
-                    "key":"pos",
-                    "position": str(i),
-                    "values":term_dict[words_found[i]]['pos'].lower()
-                })
-        context = term_dict.get(words_found[i])
-        if context and i != 1 :
-#           string of the context words
-            SubElement(child, 'p',{
-                    "key":"tokens",
-                    "position": str(i),
-                    "values":context['lemma'].lower()
-                })
-    #store pattern in memory, avoid searching with the same pattern
-    pat = list(top)[1]
-    pattern_tuple = tuple(child.attrib for child in pat.findall('p'))
-    if pattern_tuple in patterns:
-        print 'RETURNING, PATTERN ALREADY USED'
-        return
-    else:
-        patterns.append(pattern_tuple)
-#    #STORE PATTERNS FILE
-    if not os.path.isdir('patterns'):
-        os.mkdir('patterns')
-
-#    logging.info("{} writing pattern file".format(time.strftime('%H:%M:%S')))
-    file_name = os.path.abspath('.')+'/patterns/xml_pattern-{}.xml'.format(time.strftime('%d-%m-%y-%H:%M:%S'))
-#    print file_name
-    with open(file_name, 'w', 0) as f: #0 is for not buffering
-        f.write(prettify(top).encode('utf8'))
- ## CALL THE TERMINOLOGY EXTRACTOR WITH THE NEWLY CREATED PATTERNS
-    cmd = ' '.join(['python', CMD_EXTRACTOR_SCRIPT, '-d', path_to_db, '-p', file_name])
-#    logging.info(cmd)
-#    print cmd
-#    logging.info("{} calling terminology extractor".format(time.strftime('%H:%M:%S')))
-    process = Popen(cmd, stdout=PIPE, shell=True)
-    output, err = process.communicate()    
-    if output:
-        store_output_extractor(output)
-    return top
-
-
-def start():
+def start(amount_files=10):
     top = Element('patterns') #this will be the main pattern file.
     comment = Comment('Pattern file for terminology extractor')
     top.append(comment)
-
     training_props = []
     count = 0
     for file_name in os.listdir(PATH_ANNOTATED_DATA):
-        if count == 10:
+        if count == amount_files:
             break
         print file_name
         terms, props, handled_props, term_dict,\
@@ -388,8 +307,8 @@ def start():
                     print e
             print "AMOUNT OF ASPECTS {}".format(len(aspects))
         count+=1
-        print count
     return top
+
 
 def store_output_extractor(raw_output):
     try:
@@ -400,24 +319,9 @@ def store_output_extractor(raw_output):
     except ValueError, e:
         print "check terminology extractor output"
         raise e
-    
-    
-def test_fun_2():
-    terms, props, handled_props, term_dict,\
-        tokens_dict = read_training_data(os.listdir(PATH_ANNOTATED_DATA)[0])
-    return_mods(get_context_numbers('t11', term_dict), term_dict, DATABASE)
-    
 
-if __name__ == '__main__':
-    processed_data = preprocess([d['comment'] for d in data])
-    model = gensim.models.Word2Vec(processed_data)
-    print "CREATING W2V MODEL"
-    training_props = []
-    for file_name in os.listdir(PATH_ANNOTATED_DATA):
-        print file_name
-        terms, props, handled_props, term_dict,\
-            tokens_dict = read_training_data(file_name)
-        training_props.extend(handled_props)
+
+def start_classification(training_props):
 #    print "training SVM model"
     vectorizer = DictVectorizer()
     X = convert_props(training_props)
@@ -432,9 +336,16 @@ if __name__ == '__main__':
     clf.score(X_test, y_test)
     predicted = clf.predict(X_test)
     print classification_report(y_test, predicted)
+        
+
+if __name__ == '__main__':
+    processed_data = preprocess([d['comment'] for d in data])
+    print "CREATING W2V MODEL"
+    model = gensim.models.Word2Vec(processed_data)
+    print "DONE"
+    print "SEARCHING FOR ASPECTS"
     aspects = list()
     patterns = list()
-
     pattern_file = start()
     run_extractor(pattern_file, DATABASE)
 #
