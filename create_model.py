@@ -19,7 +19,6 @@ from nltk.stem import SnowballStemmer
 from KafNafParserPy import KafNafParser
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.model_selection import train_test_split
-from sklearn import svm
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.svm import LinearSVC
@@ -37,23 +36,6 @@ CMD_EXTRACTOR_SCRIPT = '~/Research/terminology_extractor/extract_patterns.py'
 #CMD_EXTRACTOR_SCRIPT = '/Users/nadiamanarbelkaid/terminology_extractor/extract_patterns.py'
 PATH_ANNOTATED_DATA = '/Users/soufyanbelkaid/Research/Aspect-Mining/opinion_annotations_nl-master/kaf/hotel/'
 #PATH_ANNOTATED_DATA = '/Users/nadiamanarbelkaid/Aspect_mining/opinion_annotations_nl-master/kaf/hotel/'
-POSSIBLE_PROPERTIES = {'Bathroom':['badkamer'],
- 'Beds':['bed', 'bedden'],
- 'Breakfast':['ontbijt'],
- 'Car parking':['parkeren'],
- 'Cleanliness':['hygiëne','schoon'],
- 'Facilities':['faciliteiten'],
- 'Interior/exterior':['interieur'],
- 'Internet':['internet'],
- 'Location':['locatie'],
- 'Noisiness':['geluid'],
- 'Reservation/check-in/check-out':['inchecken', 'uitchecken'],
- 'Restaurant':['restaurant'],
- 'Rooms':['kamer'],
- 'Staff':['personeel'],
- 'Swimming pool':['zwembad'],
- 'Transportation':['vervoer'],
- 'Value-for-money':['waarde','geld']}
 
 
 def preprocess(files, tagged=False):
@@ -283,7 +265,6 @@ def start(amount_files=10):
                     create_pattern_file(get_context_numbers(e['tid'], term_dict), term_dict, top)
                 except KeyError:
                     print "term_id not found {} in file {}".format(e['tid'], file_name)                    
-                    print e
             print "AMOUNT OF ASPECTS {}".format(len(aspects))
         count+=1
     return top
@@ -309,7 +290,6 @@ def start_classification(training_props):
     Y = mb.fit_transform(zip(*training_props)[0])
     X_train, X_test, y_train, y_test=train_test_split(X, Y,\
             test_size=0.1, random_state=0)
-#    clf = svm.SVC()
     clf = OneVsRestClassifier(LinearSVC(random_state=0))
     clf.fit(X_train, y_train)
     clf.score(X_test, y_test)
