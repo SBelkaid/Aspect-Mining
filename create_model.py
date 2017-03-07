@@ -31,11 +31,8 @@ from sklearn.metrics import classification_report
 
 data = json.loads(open('dutchies.json', 'r').read())
 DATABASE = '~/Programming/terminology_extractor/hotel_reviews_v2.db'
-#DATABASE = '/Users/nadiamanarbelkaid/Aspect_mining/hotel_reviews_v2.db'
 CMD_EXTRACTOR_SCRIPT = '~/Research/terminology_extractor/extract_patterns.py'
-#CMD_EXTRACTOR_SCRIPT = '/Users/nadiamanarbelkaid/terminology_extractor/extract_patterns.py'
 PATH_ANNOTATED_DATA = '/Users/soufyanbelkaid/Research/Aspect-Mining/opinion_annotations_nl-master/kaf/hotel/'
-#PATH_ANNOTATED_DATA = '/Users/nadiamanarbelkaid/Aspect_mining/opinion_annotations_nl-master/kaf/hotel/'
 
 
 def preprocess(files, tagged=False):
@@ -240,9 +237,9 @@ def run_extractor(pattern_file, path_to_db):
 #    print cmd
 #    logging.info("{} calling terminology extractor".format(time.strftime('%H:%M:%S')))
     process = Popen(cmd, stdout=PIPE, shell=True)
-    output, err = process.communicate()    
+    output, err = process.communicate()
     if output:
-        store_output_extractor(output)
+        return store_output_extractor(output)
    
 
 def start(amount_files=10):
@@ -253,6 +250,7 @@ def start(amount_files=10):
     count = 0
     for file_name in os.listdir(PATH_ANNOTATED_DATA):
         if count == amount_files:
+            print "Breaking amount of count = {}".format(amount_files)
             break
         print file_name
         terms, props, handled_props, term_dict,\
@@ -265,20 +263,30 @@ def start(amount_files=10):
                     create_pattern_file(get_context_numbers(e['tid'], term_dict), term_dict, top)
                 except KeyError:
                     print "term_id not found {} in file {}".format(e['tid'], file_name)                    
-            print "AMOUNT OF ASPECTS {}".format(len(aspects))
         count+=1
     return top
 
 
 def store_output_extractor(raw_output):
+    """
+    This function adds the candidate aspects to the global aspects list, the candidates are 
+    extracted with the terminology extractor in the run_extractor function.
+    The filename, positionof candidate and candidate aspect are added to a list
+
+    :param raw_output: json dict output from the terminology extractor
+    :return: list(file_name, position, aspect)
+    :rtype: list(tuple)
+    """
+    aspects = list()
     try:
         candidates = json.loads(raw_output)
         for key, val in candidates.items():
-            #index 1, only interested in middle
+            #index 1, only interested in middle which is the aspect
             aspects.append((key, zip(val[0][0].split(), val[0][1].split())[1]))
     except ValueError, e:
         print "check terminology extractor output"
         raise e
+    return aspects
 
 
 def start_classification(training_props):
@@ -303,10 +311,9 @@ if __name__ == '__main__':
     model = gensim.models.Word2Vec(processed_data)
     print "DONE"
     print "SEARCHING FOR ASPECTS"
-    aspects = list()
     patterns = list()
     pattern_file = start()
-    run_extractor(pattern_file, DATABASE)
-#
+    aspects = run_extractor(pattern_file, DATABASE)
+
 #    terms, props, handled_props, term_dict,\
 #        tokens_dict = read_training_data(os.listdir(PATH_ANNOTATED_DATA)[0])
